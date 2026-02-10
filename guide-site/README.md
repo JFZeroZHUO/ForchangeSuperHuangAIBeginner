@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI 编程新手入门指南 - 网页版
 
-## Getting Started
+这是一个基于 Next.js 开发的 AI 编程新手入门教程网站。
 
-First, run the development server:
+## 🚀 项目简介
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+本项目旨在将《新手入门指南》PDF 转化为一个结构化的 Web 学习平台，解决新手“不知道从哪开始”、“环境配置难”、“报错不敢问”的痛点。
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+主要包含以下内容：
+- **环境准备**：科学上网、IDE 选择 (Trae/Cursor)
+- **入门实战**：开发第一个网页、环境五件套配置
+- **高级进阶**：Claude Code 安装与使用、Vibe Coding 实战
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ 本地开发
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. 进入项目目录：
+   ```bash
+   cd guide-site
+   ```
 
-## Learn More
+2. 安装依赖：
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. 启动开发服务器：
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. 打开浏览器访问 [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📦 Vercel 部署指南 (重要)
 
-## Deploy on Vercel
+由于本项目是一个 Monorepo 结构（网站代码在 `guide-site` 子目录下），部署到 Vercel 时需要特别注意配置。
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 部署步骤：
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **导入项目**：在 Vercel 中导入你的 GitHub 仓库。
+2. **配置根目录 (Root Directory)**：
+   - 在 Vercel 项目设置 (Settings) -> General 中。
+   - 将 **Root Directory** 设置为 `guide-site`。
+   - 点击 Save 保存。
+3. **检查输出目录 (Output Directory)**：
+   - 确保 **Output Directory** 为空（默认值），不要手动填写 `out` 或 `dist`。
+4. **重新部署**：
+   - 修改配置后，务必去 Deployments 页面点击 **Redeploy** 才能生效。
+
+### 常见问题 (FAQ)
+
+- **Q: 部署成功但访问显示 404？**
+  - A: 99% 是因为 Root Directory 没设置对。请确保在 Vercel 设置里填入了 `guide-site`，并且**重新部署**了一次。
+
+- **Q: 构建报错 "Type error: Cannot find module..."？**
+  - A: 这是 TypeScript 类型检查错误。请确保所有引用的组件都存在。我们已经修复了 `CompletionCheckbox.tsx` 中的引用错误。
+
+## 📚 学习资源
+
+- [Next.js 文档](https://nextjs.org/docs)
+- [Vercel 部署文档](https://vercel.com/docs)
