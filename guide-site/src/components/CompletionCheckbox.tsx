@@ -4,7 +4,6 @@ import { CheckSquare, Square, ArrowRight } from "lucide-react";
 import { useProgress } from "@/contexts/ProgressContext";
 import { usePathname, useRouter } from "next/navigation";
 import { docsConfig } from "@/config/docs";
-import { Button } from "@/components/ui/button"; // Assuming you have a Button component, if not, standard button or custom style is fine. But wait, I should check if ui/button exists.
 import { cn } from "@/lib/utils";
 
 export function CompletionCheckbox({ label = "任务打卡：开发出第一个网页！" }: { label?: string }) {
