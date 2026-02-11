@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { LayoutWrapper } from "@/components/LayoutWrapper";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AntdRegistry } from '@ant-design/nextjs-registry';
 
 const inter = Inter({
   variable: "--font-sans",
@@ -29,15 +30,17 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
-          disableTransitionOnChange
-          forcedTheme="light"
-        >
-          <LayoutWrapper>{children}</LayoutWrapper>
-        </ThemeProvider>
+        <AntdRegistry>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem={false}
+            disableTransitionOnChange
+            forcedTheme="light"
+          >
+            <LayoutWrapper>{children}</LayoutWrapper>
+          </ThemeProvider>
+        </AntdRegistry>
       </body>
     </html>
   );
