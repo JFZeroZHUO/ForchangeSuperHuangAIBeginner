@@ -1,135 +1,155 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import mysql from 'mysql2/promise';
 
-// Supabase 配置
-// 获取默认 schema
-let gSchema = 'public';
+// 阿里云 RDS 配置
+// 请在 .env.local 中配置以下环境变量
+// ALIYUN_RDS_HOST=rm-xxx.mysql.rds.aliyuncs.com
+// ALIYUN_RDS_PORT=3306
+// ALIYUN_RDS_USER=your_username
+// ALIYUN_RDS_PASSWORD=your_password
+// ALIYUN_RDS_DATABASE=your_database
 
-// 创建 Supabase 客户端
-let supabase: SupabaseClient | null = null;
+let pool: mysql.Pool | null = null;
 
-// 获取 Supabase 客户端
-export function getSupabase(): SupabaseClient {
-  if (!supabase) {
-    gSchema = process.env.SUPABASE_SCHEMA as "public";
-    // 运行时检查环境变量
-    const runtimeSupabaseUrl = process.env.SUPABASE_URL;
-    const runtimeSupabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-    
-    if (!runtimeSupabaseUrl || !runtimeSupabaseAnonKey) {
-      console.warn('Missing Supabase environment variables. Database features will not work.');
-      // Return a dummy client or throw error depending on strictness
-      // For now, let's throw to be explicit, or maybe we should handle it gracefully
-      // throw new Error('Missing Supabase environment variables.');
+export function getDbPool(): mysql.Pool {
+  if (!pool) {
+    const host = process.env.ALIYUN_RDS_HOST;
+    const user = process.env.ALIYUN_RDS_USER;
+    const password = process.env.ALIYUN_RDS_PASSWORD;
+    const database = process.env.ALIYUN_RDS_DATABASE;
+    const port = parseInt(process.env.ALIYUN_RDS_PORT || '3306');
+
+    if (!host || !user || !password || !database) {
+      console.warn('Missing Alibaba Cloud RDS environment variables. Database features will not work.');
+      throw new Error('Missing Alibaba Cloud RDS environment variables. Please configure .env file.');
     }
-    
-    // Check if we have values before creating client to avoid crash if env is missing
-    if (runtimeSupabaseUrl && runtimeSupabaseAnonKey) {
-        supabase = createClient(runtimeSupabaseUrl, runtimeSupabaseAnonKey, {
-            db: {
-                schema: process.env.SUPABASE_SCHEMA as "public"
-            }
-        });
-    } else {
-        // Create a dummy object to satisfy type check but it will fail on calls
-        // This is a temporary fallback for development without env vars
-        throw new Error('Missing Supabase environment variables. Please configure .env file.');
-    }
+
+    pool = mysql.createPool({
+      host,
+      user,
+      password,
+      database,
+      port,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      // 阿里云 RDS 推荐配置
+      connectTimeout: 10000, 
+      ssl: process.env.NODE_ENV === 'production' ? {
+        rejectUnauthorized: false // 根据实际证书情况调整
+      } : undefined
+    });
   }
-  return supabase as SupabaseClient;
+  return pool;
 }
 
-// 执行查询
+// 通用查询函数
 export async function query<T = any>(
+  sql: string,
+  values?: any[]
+): Promise<T[]> {
+  try {
+    const db = getDbPool();
+    const [rows] = await db.execute(sql, values);
+    return rows as T[];
+  } catch (error) {
+    console.error('Database query error:', error);
+    throw error;
+  }
+}
+
+// 模拟 Supabase 风格的简单查询构建器 (为了兼容现有代码结构)
+// 注意：这只是一个简单的适配层，建议后续直接使用 SQL
+export async function select<T = any>(
   table: string, 
   options: {
-    select?: string;
+    select?: string; // 暂时忽略，默认 *
     filters?: Record<string, any>;
-    orderBy?: { column: string; ascending?: boolean };
     limit?: number;
     offset?: number;
-    schema?: string;
   } = {}
 ): Promise<T[]> {
-  const client = getSupabase();
-  const { data, error } = await client.from(table).select(options.select || '*');
-  if (error) {
-    console.error('Supabase query error:', error);
-    throw error as any;
+  const db = getDbPool();
+  let sql = `SELECT * FROM ??`;
+  const params: any[] = [table];
+
+  if (options.filters && Object.keys(options.filters).length > 0) {
+    const conditions: string[] = [];
+    Object.entries(options.filters).forEach(([key, value]) => {
+      conditions.push(`?? = ?`);
+      params.push(key, value);
+    });
+    sql += ` WHERE ${conditions.join(' AND ')}`;
   }
-  return data as T[];
+
+  if (options.limit) {
+    sql += ` LIMIT ?`;
+    params.push(options.limit);
+  }
+
+  if (options.offset) {
+    sql += ` OFFSET ?`;
+    params.push(options.offset);
+  }
+
+  const [rows] = await db.query(sql, params);
+  return rows as T[];
 }
 
 export async function insert<T = any>(
   table: string, 
-  data: Record<string, any>,
-  schema?: string
+  data: Record<string, any>
 ): Promise<T> {
-  const client = getSupabase();
-  const { data: result, error } = await client
-    .from(table)
-    .insert(data)
-    .select()
-    .single();
+  const db = getDbPool();
+  const keys = Object.keys(data);
+  const values = Object.values(data);
+  
+  const sql = `INSERT INTO ?? (${keys.map(() => '??').join(', ')}) VALUES (${values.map(() => '?').join(', ')})`;
+  const params = [table, ...keys, ...values];
 
-  if (error) {
-    console.error('Supabase insert error:', error);
-    throw error;
-  }
-  return result;
+  const [result] = await db.query(sql, params);
+  // @ts-ignore
+  return { id: result.insertId, ...data } as T;
 }
 
-// 计数查询
 export async function count(
   table: string, 
-  filters?: Record<string, any>,
-  schema?: string
+  filters?: Record<string, any>
 ): Promise<number> {
-  const client = getSupabase();
-  const schemaName = schema || gSchema;
-  const tableName = schemaName === 'public' ? table : `${schemaName}.${table}`;
-  let query = client.from(tableName).select('*', { count: 'exact', head: true });
+  const db = getDbPool();
+  let sql = `SELECT COUNT(*) as total FROM ??`;
+  const params: any[] = [table];
 
-  // 应用过滤器
-  if (filters) {
+  if (filters && Object.keys(filters).length > 0) {
+    const conditions: string[] = [];
     Object.entries(filters).forEach(([key, value]) => {
-      query = query.eq(key, value);
+      conditions.push(`?? = ?`);
+      params.push(key, value);
     });
+    sql += ` WHERE ${conditions.join(' AND ')}`;
   }
 
-  const { count, error } = await query;
-  console.log(count);
-  if (error) {
-    console.error('Supabase count error:', error);
-    throw error;
-  }
-
-  return count || 0;
+  const [rows] = await db.query(sql, params);
+  // @ts-ignore
+  return rows[0]?.total || 0;
 }
 
 // 测试连接
 export async function testConnection(): Promise<boolean> {
   try {
-    const client = getSupabase();
-    // Use a simple query that doesn't depend on specific tables if possible, 
-    // or catch the error if table doesn't exist
-    // 'examples' table might not exist in guide-site, so maybe check auth or something generic
-    // But sticking to template code:
-    const { data, error } = await client.from('examples').select('count', { count: 'exact', head: true });
-    
-    if (error) {
-      console.error('Supabase connection test failed:', error);
-      return false;
-    }
-    
+    const db = getDbPool();
+    await db.query('SELECT 1');
     return true;
   } catch (error) {
-    console.error('Supabase connection test failed:', error);
+    console.error('Database connection test failed:', error);
     return false;
   }
 }
 
-// 关闭连接（Supabase 不需要手动关闭）
+// 关闭连接池
 export async function closePool(): Promise<void> {
-  // Supabase 客户端会自动管理连接
-  console.log('Supabase connection pool closed');
+  if (pool) {
+    await pool.end();
+    pool = null;
+    console.log('Database connection pool closed');
+  }
 }
